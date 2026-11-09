@@ -1,0 +1,9 @@
+node_modules/
+**/node_modules/
+services/api/.env
+services/api/storage/
+services/web/dist/
+coverage/
+.DS_Store
+Thumbs.db
+server/.env
