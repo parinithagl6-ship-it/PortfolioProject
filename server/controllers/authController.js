@@ -1,7 +1,7 @@
-
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { randomBytes } from "crypto";
 
 export const register = async (req, res) => {
   try {
@@ -9,13 +9,9 @@ export const register = async (req, res) => {
     const email = req.body.email?.trim().toLowerCase();
     const password = req.body.password;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (password.length < 8) {
+    if (!name || !email || !password || password.length < 8) {
       return res.status(400).json({
-        message: "Password must be at least 8 characters"
+        message: "Enter all fields. Password must have at least 8 characters."
       });
     }
 
@@ -23,11 +19,12 @@ export const register = async (req, res) => {
 
     if (existing) {
       return res.status(409).json({
-        message: "Email already registered. Please log in."
+        message: "Email already registered."
       });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+
     const user = await User.create({
       name,
       email,
@@ -56,17 +53,11 @@ export const login = async (req, res) => {
     const email = req.body.email?.trim().toLowerCase();
     const password = req.body.password;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required"
-      });
-    }
-
     const user = await User.findOne({ email });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user || !password || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({
-        message: "Invalid email or password. Check your password."
+        message: "Invalid email or password."
       });
     }
 
@@ -84,5 +75,57 @@ export const login = async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Login failed" });
+  }
+};
+
+export const demoLogin = async (req, res) => {
+  try {
+    const email = "portfolio-demo@portfolioproof.local";
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const randomPassword = randomBytes(32).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+      try {
+        user = await User.create({
+          name: "PortfolioProof Demo",
+          email,
+          password: hashedPassword
+        });
+      } catch (error) {
+        if (error.code === 11000) {
+          user = await User.findOne({ email });
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    if (!user) {
+      throw new Error("Demo account could not be created.");
+    }
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    res.json({
+      message: "Demo access successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error("Demo login error:", error);
+    res.status(500).json({
+      message: "Could not open demo dashboard."
+    });
   }
 };
