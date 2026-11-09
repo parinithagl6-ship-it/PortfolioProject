@@ -11,11 +11,19 @@ dotenv.config();
 
 const app = express();
 
+// Allow local development and the deployed frontend.
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+].filter(Boolean);
+
 app.use(
   cors({
     origin: (origin, callback) => {
       if (
         !origin ||
+        allowedOrigins.includes(origin) ||
         /^http:\/\/localhost:\d+$/.test(origin) ||
         /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)
       ) {
@@ -35,6 +43,7 @@ app.get("/", (req, res) => {
   res.json({ message: "PortfolioProof API is running!" });
 });
 
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/portfolio", portfolioRoutes);
