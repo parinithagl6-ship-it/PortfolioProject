@@ -3,7 +3,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Auth.css";
 
-const API = "http://localhost:5000/api/auth";
+const API_ROOT = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+)
+  .trim()
+  .replace(/\/+$/, "")
+  .replace(/\/api$/i, "");
+
+const API = `${API_ROOT}/api/auth`;
 
 function AuthForm({ isRegister }) {
   const [name, setName] = useState("");
@@ -23,8 +30,6 @@ function AuthForm({ isRegister }) {
     setLoading(true);
 
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-
       const response = await fetch(
         `${API}/${isRegister ? "register" : "login"}`,
         {
@@ -36,39 +41,51 @@ function AuthForm({ isRegister }) {
             isRegister
               ? {
                   name: name.trim(),
-                  email: normalizedEmail,
+                  email: email.trim().toLowerCase(),
                   password
                 }
               : {
-                  email: normalizedEmail,
+                  email: email.trim().toLowerCase(),
                   password
                 }
           )
         }
       );
 
-      const data = await response.json().catch(() => ({}));
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error("The server returned an invalid response.");
+      }
 
       if (!response.ok) {
-        throw new Error(data.message || "Unable to complete your request.");
+        throw new Error(
+          data.message || `Request failed (${response.status}).`
+        );
       }
 
       if (!data.token || !data.user) {
-        throw new Error("Login response is incomplete. Please try again.");
+        throw new Error(
+          "Login information was not returned by the server."
+        );
       }
 
+      // Save the login session in this browser.
       localStorage.setItem("portfolioToken", data.token);
       localStorage.setItem("portfolioUser", JSON.stringify(data.user));
 
-      // Navigate to dashboard after successful authentication.
+      // Open the dashboard after successful login or registration.
       navigate("/dashboard", { replace: true });
 
     } catch (error) {
       console.error("Authentication error:", error);
 
       setMessage(
-        error.message === "Failed to fetch"
-          ? "Cannot connect to the server. Make sure your backend is running on port 5000."
+        error instanceof TypeError
+          ? "Cannot connect to the backend. Make sure the server is running."
           : error.message || "Something went wrong. Please try again."
       );
     } finally {
@@ -94,7 +111,7 @@ function AuthForm({ isRegister }) {
             : "Log in to continue building your portfolio."}
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="on">
 
           {isRegister && (
             <>
@@ -117,7 +134,7 @@ function AuthForm({ isRegister }) {
             id="email"
             name="email"
             type="email"
-            autoComplete="email"
+            autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your email"
@@ -180,5 +197,4 @@ export function Login() {
 
 export function Register() {
   return <AuthForm isRegister={true} />;
-}
-
+};

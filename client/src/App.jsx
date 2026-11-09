@@ -1,6 +1,6 @@
 
 import "./App.css";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { Login, Register } from "./Auth.jsx";
 import Dashboard from "./Dashboard.jsx";
 
